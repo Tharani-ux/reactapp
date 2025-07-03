@@ -317,6 +317,96 @@ const fetchData = async () => {
 
     fetchData();
   }, [startDate, endDate, modelType]);
+useEffect(() => {
+  if (!selectedDate || !modelType) return;
+
+  const fetchMidGraph = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/model-predict-date?model=${modelType}&date=${selectedDate}`);
+      const data = await response.json();
+
+      const predicted = [];
+      const original = [];
+
+      if (Array.isArray(data.data)) {
+        for (const row of data.data) {
+          const { time, tec, source } = row;
+          if (source === "predicted") {
+            predicted.push({ x: time, y: tec });
+          } else {
+            original.push({ x: time, y: tec });
+          }
+        }
+      }
+
+      const graphData = [];
+
+      if (predicted.length) {
+        graphData.push({
+          x: predicted.map(d => d.x),
+          y: predicted.map(d => d.y),
+          type: 'scatter',
+          mode: 'lines+markers',
+          name: 'Predicted',
+          line: { color: '#ff4d4d', shape: 'spline', width: 3 },
+          marker: { color: '#ff4d4d' }
+        });
+      }
+
+      if (original.length) {
+        // Connect last predicted to first original if close in time
+        if (predicted.length) {
+          const lastPredTime = new Date(predicted[predicted.length - 1].x);
+          const firstOrigTime = new Date(original[0].x);
+          const diff = (firstOrigTime - lastPredTime) / 1000;
+
+          if (diff <= 3600) {
+            const merged = [...predicted.slice(-1), ...original];
+            merged.sort((a, b) => new Date(a.x) - new Date(b.x));
+
+            graphData.push({
+              x: merged.map(d => d.x),
+              y: merged.map(d => d.y),
+              type: 'scatter',
+              mode: 'lines+markers',
+              name: 'Original',
+              line: { color: '#00ccff', shape: 'spline', width: 3 },
+              marker: { color: '#00ccff' }
+            });
+          } else {
+            graphData.push({
+              x: original.map(d => d.x),
+              y: original.map(d => d.y),
+              type: 'scatter',
+              mode: 'lines+markers',
+              name: 'Original',
+              line: { color: '#00ccff', shape: 'spline', width: 3 },
+              marker: { color: '#00ccff' }
+            });
+          }
+        }
+      }
+
+      Plotly.newPlot("mid-graph", graphData, {
+        plot_bgcolor: "rgba(0,0,0,0)",
+        paper_bgcolor: "rgba(0,0,0,0)",
+        font: { color: '#fff', family: 'Inter' },
+        xaxis: { title: "Time", showgrid: true, gridcolor: 'rgba(255,255,255,0.1)' },
+        yaxis: { title: "TEC", showgrid: true, gridcolor: 'rgba(255,255,255,0.1)' },
+        title: `Detailed Analysis: ${selectedDate}`,
+        margin: { t: 40, r: 40, b: 60, l: 60 },
+        hovermode: 'closest',
+        hoverlabel: { bgcolor: 'rgba(30,30,40,0.9)', bordercolor: 'rgba(100,108,255,0.5)' }
+      });
+
+    } catch (error) {
+      console.error("Error fetching detailed data:", error);
+      Plotly.purge("mid-graph");
+    }
+  };
+
+  fetchMidGraph();
+}, [selectedDate, modelType]);
 
   return (
     <>
@@ -328,9 +418,10 @@ const fetchData = async () => {
             <LogoText>Navavishkar</LogoText>
           </Logo>
           <NavMenu>
+            <NavLink to="/home">Home</NavLink>
             <NavLink to="/dashboard">Dashboard</NavLink>
-            <NavLink to="/data">Data Analysis</NavLink>
-            <NavLink to="/reports">Reports</NavLink>
+            <NavLink to="/upload">Upload</NavLink> {/* ✅ NEW LINK */}
+            <NavLink to="/database">Database</NavLink>
             <NavLink to="/settings">Settings</NavLink>
           </NavMenu>
         </Sidebar>
@@ -356,21 +447,37 @@ const fetchData = async () => {
             <div id="top-graph" style={{ height: "610px" }} />
           </GraphContainer>
 
-          <GraphContainer>
-            <GraphHeader>
-              <GraphTitle>Detailed Analysis</GraphTitle>
-              <DateInputGroup>
-                <DateInput type="text" id="selectedDate" placeholder="Select Date" />
-                <Dropdown>
-                  <option value="morning">Morning</option>
-                  <option value="noon">Noon</option>
-                  <option value="evening">Evening</option>
-                  <option value="night">Night</option>
-                </Dropdown>
-              </DateInputGroup>
-            </GraphHeader>
-            <div id="mid-graph" style={{ height: "610px" }} />
+         {/* Mid Graph + Details */}
+          <GraphContainer style={{ display: "flex", flexWrap: "wrap", gap: "2rem" }}>
+            <div style={{ flex: 2 }}>
+              <GraphHeader>
+                <GraphTitle>Detailed Analysis</GraphTitle>
+                <DateInputGroup>
+                  <DateInput type="text" id="selectedDate" placeholder="Select Date" />
+                  <Dropdown value={modelType} onChange={(e) => setModelType(e.target.value)}>
+                    <option value="1">Random Forest</option>
+                    <option value="2">Gradient Boosting</option>
+                    <option value="3">XGBoost</option>
+                    <option value="4">MLP</option>
+                    <option value="5">LSTM</option>
+                    <option value="6">BiLSTM</option>
+                  </Dropdown>
+                </DateInputGroup>
+              </GraphHeader>
+              <div id="mid-graph" style={{ height: "610px" }} />
+            </div>
+            <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", padding: "1rem", borderRadius: "12px" }}>
+              <h3 style={{ color: "#fff" }}>Graph Details</h3>
+              <ul style={{ listStyle: "none", padding: 0, lineHeight: "1.8" }}>
+                <li><strong>Date:</strong> {selectedDate || "-"}</li>
+                <li><strong>Model:</strong> {modelType}</li>
+                <li><strong>Avg TEC:</strong> <span id="avg-tec">-</span></li>
+                <li><strong>Peak Time:</strong> <span id="peak-time">-</span></li>
+                <li><strong>Peak TEC:</strong> <span id="peak-tec">-</span></li>
+              </ul>
+            </div>
           </GraphContainer>
+
 
           <GraphContainer>
             <GraphHeader>

@@ -350,12 +350,15 @@ const HomePage = () => {
             <NavLinks>
               <NavLink to="/home">Home</NavLink>
               <NavLink to="/dashboard">Dashboard</NavLink>
+              <NavLink to="/upload">Upload</NavLink> {/* ✅ NEW LINK */}
+              <NavLink to="/database">Database</NavLink>
               <NavLink to="/about">About</NavLink>
               <ThemeToggle onClick={toggleTheme}>
                 {isDark ? 'Light' : 'Dark'}
               </ThemeToggle>
             </NavLinks>
           </Navbar>
+
 
           <MainContent>
             <GlassCard>
@@ -364,9 +367,7 @@ const HomePage = () => {
                 Advanced visualization and analytical tools for Global Navigation Satellite System research.
                 Precise positioning, timing, and atmospheric studies with real-time data processing.
               </Subtitle>
-              <DashboardButton to="/dashboard">
-                Access Research Dashboard
-              </DashboardButton>
+            
             </GlassCard>
           </MainContent>
         </HomeContainer>
